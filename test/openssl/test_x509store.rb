@@ -39,7 +39,12 @@ class OpenSSL::TestX509Store < OpenSSL::TestCase
       store = OpenSSL::X509::Store.new
       store.add_path(dir)
 
-      assert_equal true, store.verify(cert1)
+      if libressl?(3, 3, 0)
+        assert_equal false, store.verify(cert1)
+        assert_equal(OpenSSL::X509::V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT, store.error)
+      else
+        assert_equal true, store.verify(cert1)
+      end
       assert_equal false, store.verify(cert2)
     end
 
@@ -82,7 +87,7 @@ class OpenSSL::TestX509Store < OpenSSL::TestCase
     store = OpenSSL::X509::Store.new
     store.add_cert(ca1_cert)
     assert_equal(false, store.verify(ee1_cert))
-    assert_equal(OpenSSL::X509::V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, store.error)
+    assert_include([OpenSSL::X509::V_ERR_UNABLE_TO_GET_ISSUER_CERT_LOCALLY, OpenSSL::X509::V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE], store.error)
 
     # CA1 trusted, CA2 supplied
     store = OpenSSL::X509::Store.new
@@ -186,6 +191,7 @@ class OpenSSL::TestX509Store < OpenSSL::TestCase
     store.purpose = OpenSSL::X509::PURPOSE_CRL_SIGN
     store.add_cert(ca1_cert)
     assert_equal(true, store.verify(ca1_cert))
+    pend "X509 purpose verification doesn't work in LibreSSL 3.3,{0,1}" if libressl?(3, 3, 0) && !libressl?(3, 3, 2)
     assert_equal(false, store.verify(ee1_cert))
   end
 
@@ -322,7 +328,12 @@ class OpenSSL::TestX509Store < OpenSSL::TestCase
     store.add_cert(ca2_cert)
     store.add_crl(ca1_crl1)
     store.add_crl(ca2_crl2) # issued by ca2 but expired
-    assert_equal(true, store.verify(ca2_cert))
+    if libressl?(3, 3, 0)
+      assert_equal(false, store.verify(ca2_cert))
+      assert_equal(OpenSSL::X509::V_ERR_CRL_SIGNATURE_FAILURE, store.error)
+    else
+      assert_equal(true, store.verify(ca2_cert))
+    end
     assert_equal(false, store.verify(ee1_cert))
     assert_equal(OpenSSL::X509::V_ERR_CRL_HAS_EXPIRED, store.error)
     assert_equal(false, store.verify(ee2_cert))

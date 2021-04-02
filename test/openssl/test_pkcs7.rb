@@ -38,6 +38,8 @@ class OpenSSL::TestPKCS7 < OpenSSL::TestCase
     p7 = OpenSSL::PKCS7.new(tmp.to_der)
     certs = p7.certificates
     signers = p7.signers
+
+    pend "PKCS7 verification doesn't work in LibreSSL 3.3" if libressl?(3, 3, 0)
     assert(p7.verify([], store))
     assert_equal(data, p7.data)
     assert_equal(2, certs.size)
@@ -102,6 +104,7 @@ class OpenSSL::TestPKCS7 < OpenSSL::TestCase
     store = OpenSSL::X509::Store.new
     store.add_cert(@ca_cert)
 
+    pend "PKCS7 verification doesn't work in LibreSSL 3.3" if libressl?(3, 3, 0)
     assert_equal(true, p7.verify([], store))
     assert_equal(true, OpenSSL::PKCS7.new(p7.to_der).verify([], store))
     assert_equal(1, p7.signers.size)
@@ -123,6 +126,8 @@ class OpenSSL::TestPKCS7 < OpenSSL::TestCase
     certs = p7.certificates
     signers = p7.signers
     assert(!p7.verify([], store))
+
+    pend "PKCS7 verification doesn't work in LibreSSL 3.3" if libressl?(3, 3, 0)
     assert(p7.verify([], store, data))
     assert_equal(data, p7.data)
     assert_equal(2, certs.size)
